@@ -163,7 +163,7 @@ async def getBaldRole(ctx):
 
 @client.command(aliases=["sourcecode", "sc"])
 async def sourceCode(ctx):
-    await ctx.send("Source code: https://repl.it/@EpikStuff/BaldBot#main.py")
+    await ctx.send("Source code: https://github.com/EpikStuff/BaldBot")
 
 
 @client.command(aliases=["bal"])
@@ -362,8 +362,12 @@ async def play(ctx, *, search):
         await ctx.send(f':x: Error, cannot play music.\nDebug: {e}')
 
 
-@client.command()
-async def kahootChallengeAnswers(ctx, challengeId):
+@client.command(aliases=['challengeAns'])
+async def kahootChallengeAnswers(ctx, link = None):
+    if link == None:
+      await ctx.send(':x: Usage: bkahootChallengeAnswers {challenge link}')
+      return None
+    challengeId = link.split('/')[-1]
     r = requests.get(
         f'https://kahoot.it/rest/challenges/{challengeId}?includeKahoot=true')
     data = r.json()
