@@ -7,10 +7,14 @@ from keep_alive import keep_alive
 import os
 from dotenv import load_dotenv
 import datetime
+import time
 import youtube_dl
 import urllib.request
 import re
 import requests
+import random
+import asyncio
+from functools import partial
 
 #music player
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -26,6 +30,7 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
+    #'download': False,
     'source_address':
     '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
@@ -61,6 +66,60 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 queue = {}
 players = {}
+
+
+# Bad word class
+class BadWord:
+    def __init__(self, name, wordList, responses):
+        self.name = name
+        self.wordList = wordList
+        self.responses = responses
+
+
+# Bad word lists
+bad_words = [
+    BadWord("N word", [
+        "neger", "negro", "neeger", "nigger", "nigga", "黑鬼", "hei gui"
+    ], [
+        "Orh hor say N word I tell mummy",
+        "Orh hor say N word u naughty naughty u teasing me",
+        "Nigger, a contemptuous term for a black or dark-skinned person. Nigger is an infamous word in current English, so much so that when people are called upon to discuss it, they more often than not refer to it euphemistically as \"the N-word.\" In senses 1 and 2, the word ranks as almost certainly the most offensive and inflammatory racial slur in English, a term expressive of hatred and bigotry. Sense 3 is also now rarely used and is often considered offensive. The word's self-referential uses by and among Black people are not always intended or taken as offensive (although many object to those uses as well), but its use by a person who is not Black to refer to a Black person can only be regarded as a deliberate expression of contemptuous racism. First known use of the word \"Nigger\" you may ask. The answer? 1755",
+        "Black people might sometimes address other of their black friends, \"My Nigger!\"",
+        "This word is often derogatory and Whites are banned from using that word. The reason for this is that the history of the word \"Nigger\" dates back to when Blacks were still used as slaves and people would not treat them like normal human beings and call them \"Negro\".",
+        "In the 1800s, there were human zoos showcasing black people (Niggers!)",
+        "NIGGGAAAAAAAAAAAAAAAAAAAAAA"
+    ]),
+    BadWord("F word", ["fuck", "fucking", "fucker"], [
+        "Orh hor say F word I tell mummy",
+        "Orh hor say F word u naughty naughty u teasing me",
+    ]),
+    BadWord("Chink word", ["chink", "cheenk", "ching"], [
+        "Chink, a English-language ethnic slur usually referring to a person of Chinese descent.",
+        "A chink is usually defined from the person's facial appearance, such as having small eyes. (Aidan)",
+        'The word that u have just used (Chink), is thought to have originated from ancient China as the Qing dynasty is sometimes pronounced as "Chink" in America',
+        'When I came to the U.S. as an adopted child from Vietnam (Bill). I was playing on a swing set  when a kid my age walked out of his house and came up to me and said, "Hey chink, get off the swing I want to use it."  I didn\'t know what the word meant and went home and looked it up in the dictionary. [Definition of CHINK] : a narrow beam of light shining through a hole of a wall or building. I laughed so hard until my good friend Tyron Jamal Jones James Johnson explained to me that it means the same as the N word people applied to him. We both went back the next day and kicked the living racist "chink" out of his loathsome armor. "Words have many meanings, but hate has only one intention, to cut at a person\'s self worth so the user of that word can feel a false sense of worth."',
+    ]),
+    BadWord("Pinoy word", ["pinoy"], [
+        "Pinoy more like penis (kidding)",
+        "Pinoy, a person of Filipino origin or descent used with sometimes no negative connotations unlike Nigger or Chink. Pinoy is usually used referring to a Toxic Valorant Player who speaks in noodle language that baits the entire team and screams at them for not entrying, what's worse is that he uses a fork to eat mac n cheese on a plate!",
+        "OI PINOYS STOP YELLING AND PLAYING VALORANT LAH U NO LIFER EAT ASS NOODLE LANGUAGE SPEAKING ASS, jk please dont sue me"
+    ]),
+    BadWord("Fat word",
+            ["royce", "fat", "obese", "chunky", "thorston", "kamal"], [
+                "little fat fuck", "royce kinda gay", "i love physics",
+                "asian leaksss", "omg kamal yacob hehehehehehehor",
+                "i hate tryhards LAZY EYE"
+            ]),
+    BadWord("Tryhard", ["tryhard", "aidan", "bill", "min qi", "minqi", "4a1"],
+            [
+                "eww tryhard go and study medicine lah",
+                "tryhard.exe",
+            ]),
+    BadWord("Liverpool", ["lfc", "liverpool", "scouse", "scouser"], [
+        "allez allez allez", "premier league champions 2021/22",
+        "corner taken quickly ORIGIII", "mo salad"
+    ])
+]
 
 
 #bot init and prefixes
@@ -109,6 +168,36 @@ async def on_member_join(member):
     await channel.send("Welcome to the BaldSMP, %s" % id)
     role = discord.utils.get(member.guild.roles, name="Bald")
     await member.add_roles(role)
+
+
+# Bad word count
+@client.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    with open("word_count.json", "r") as f:
+        data = json.load(f)
+        f.close()
+
+    msg = message.content.lower()
+    for swear in bad_words:
+        for bad_word in swear.wordList:
+            if bad_word in msg:
+                try:
+                    data[swear.name] += 1
+                except KeyError:
+                    data[swear.name] = 1
+
+                await message.channel.send(random.choice(swear.responses))
+                time.sleep(1)
+                await message.channel.send(swear.name + " count: " + str(data[swear.name]))
+
+    with open("word_count.json", "w") as f:
+        json.dump(data)
+        f.close()
+
+    await client.process_commands(message)
 
 
 #commands
@@ -273,7 +362,7 @@ async def withdraw(ctx, *, amt):
 
 @client.command()
 async def debug(ctx):
-    await ctx.send(ctx.author.joined_at)
+    await ctx.send("ur mom")
 
 
 @client.command()
@@ -312,9 +401,11 @@ async def join(ctx):
 
 @client.command(aliases=['stop'])
 async def leave(ctx):
+    global queue
     try:
         voice_client = ctx.message.guild.voice_client
         await voice_client.disconnect()
+        queue[str(ctx.guild.id)] = []
         embed = discord.Embed(
             title=
             f'Disconnected from **{str(ctx.message.author.voice.channel.name)}**',
@@ -330,13 +421,8 @@ async def leave(ctx):
 async def play(ctx, *, search):
     global players, queue
     if ctx.message.author.voice and not ctx.message.guild.voice_client:
-        '''vc = ctx.message.author.voice.channel
-    await vc.connect()
-    queue[str(ctx.guild.id)] = []
-    embed=discord.Embed(title=f'Successfully joined: **{str(vc.name)}**', color=0x00FF00)
-    await ctx.send(embed=embed)'''
-
         await join(ctx)
+
     elif ctx.message.author.voice == None:
         embed = discord.Embed(
             title='You must be in a voice channel to use this command!',
@@ -347,32 +433,61 @@ async def play(ctx, *, search):
     server = ctx.message.guild
     voice_channel = server.voice_client
 
-    queue[str(ctx.guild.id)].append(search)
-
-    try:
+    if not voice_channel.is_playing():
+        try:
+            async with ctx.typing():
+                url = await getUrlFromQuery(search)
+                player = await YTDLSource.from_url(url,
+                                                   loop=client.loop,
+                                                   stream=True)
+                players[server.id] = player
+                voice_channel.play(player,
+                                   after=partial(checkPlaylist, ctx,
+                                                 ctx.guild.id))
+                await ctx.send(
+                    f':white_check_mark: Now playing: **{player.title}**')
+        except Exception as e:  #ClientException:
+            await ctx.send(f':x: Error while playing audio\nError: {e}')
+    elif voice_channel.is_playing():
         async with ctx.typing():
             url = await getUrlFromQuery(search)
             player = await YTDLSource.from_url(url, loop=client.loop)
-            players[server.id] = player
-            voice_channel.play(player,
-                               after=await checkPlaylist(ctx, ctx.guild.id))
+            queue[str(ctx.guild.id)].append(search)
             await ctx.send(
-                f':white_check_mark: Now playing: **{player.title}**')
-    except Exception as e:
-        await ctx.send(f':x: Error, cannot play music.\nDebug: {e}')
+                f':white_check_mark: **{player.title}** added to queue.')
+
+
+@client.command()
+async def skip(ctx):
+    global queue
+    voice_channel = ctx.message.guild.voice_client
+    if not ctx.message.author.voice:
+        await ctx.send(':x: You are not in a voice channel >:(')
+    elif voice_channel == None:
+        await ctx.send(':x: I\'m not in a vc :|')
+    if not voice_channel.is_playing():
+        await ctx.send(
+            f':x: There is no music playing in **{ctx.message.author.voice.channel.name}** you dimwit.'
+        )
+    elif voice_channel.is_playing():
+        voice_channel.stop()
+        if len(queue[str(ctx.guild.id)]) > 1:
+            await play(ctx, search=queue[str(ctx.guild.id)].pop(0))
+        else:
+            pass
 
 
 @client.command(aliases=['challengeAns'])
-async def kahootChallengeAnswers(ctx, link = None):
+async def kahootChallengeAnswers(ctx, link=None):
     if link == None:
-      await ctx.send(':x: Usage: bkahootChallengeAnswers {challenge link}')
-      return None
+        await ctx.send(':x: Usage: bkahootChallengeAnswers {challenge link}')
+        return None
     challengeId = link.split('/')[-1]
     r = requests.get(
         f'https://kahoot.it/rest/challenges/{challengeId}?includeKahoot=true')
     data = r.json()
     if 'error' in data:
-        await ctx.send(':x:Could not find quiz ID.')
+        await ctx.send(':x: Could not find quiz ID.')
         return None
     await ctx.send(
         f':white_check_mark: Quiz Found\nQuiz Name: **{data["title"]}**\nAnswers:'
@@ -425,13 +540,14 @@ async def getDaysInServer(user):
     return days
 
 
-async def checkPlaylist(ctx, id):
+def checkPlaylist(ctx, id, tmp):
     global queue
     lst = queue[str(id)]
     if len(lst) == 0:
-        pass
+        return 0
     else:
-        await play(ctx=ctx, search=queue[str(id)].pop(0))
+        asyncio.run_coroutine_threadsafe(
+            play(ctx=ctx, search=queue[str(id)].pop(0), loop=client.loop))
 
 
 #random connec stuff
